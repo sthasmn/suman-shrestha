@@ -1,4 +1,6 @@
-## Welcome to GitHub Pages
+## Welcome to Suman Shrestha's page
+
+![suman](/Users/suman/Downloads/suman.jpeg)
 
 You can use the [editor on GitHub](https://github.com/sthasmn/suman-shrestha/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
 
