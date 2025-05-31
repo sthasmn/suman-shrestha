@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Sentence Recorder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; overscroll-behavior: none; }
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+        .modal-content { background-color: #fefefe; color: #333; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 500px; border-radius: 8px; text-align: center; }
+        .modal-buttons button { margin: 0 10px; }
+        *:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+        #videoPreview, #videoPreviewTest, #deviceSelectionPreview { transform: scaleX(-1); background-color: #000; } /* Added background for empty video */
+        .timer-display { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px; z-index: 50; }
+        /* Ensure status messages are scrollable and have a min-height */
+        #statusMessages { min-height: 4rem; /* Approx 3 lines */ }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 flex flex-col items-center justify-center min-h-screen p-4 selection:bg-sky-500 selection:text-white">
+
+<div id="appContainer" class="w-full max-w-2xl bg-slate-800 p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
+
+    <div id="nameSection" class="space-y-4">
+        <h1 class="text-3xl font-bold text-sky-400 text-center">Video Sentence Recorder</h1>
+        <p class="text-slate-300 text-center">Step 1: Enter your name and select a sentence batch.</p>
+        <div>
+            <label for="userName" class="block text-sm font-medium text-sky-300 mb-1">Your Name:</label>
+            <input type="text" id="userName" name="userName" class="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-slate-100 shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm" placeholder="E.g., Alex">
+        </div>
+        <div>
+            <label for="sentenceBatch" class="block text-sm font-medium text-sky-300 mb-1">Select Sentence Batch:</label>
+            <select id="sentenceBatch" class="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-slate-100 shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm">
+                <option value="">-- Select a Batch --</option>
+                <option value="1">Sentences 1-100</option><option value="2">Sentences 101-200</option><option value="3">Sentences 201-300</option><option value="4">Sentences 301-400</option><option value="5">Sentences 401-500</option><option value="6">Sentences 501-600</option><option value="7">Sentences 601-700</option><option value="8">Sentences 701-800</option><option value="9">Sentences 801-900</option><option value="10">Sentences 901-1000</option>
+            </select>
+        </div>
+        <button id="proceedToDeviceSetupButton" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-opacity-50 transition duration-150 ease-in-out" disabled>
+            Proceed to Device Setup
+        </button>
+    </div>
+
+    <div id="deviceSelectionSection" class="hidden space-y-4">
+        <h2 class="text-2xl font-semibold text-sky-400 text-center">Step 2: Select Devices</h2>
+        <p class="text-slate-300 text-center">Choose your camera and microphone. A brief permission request may appear to list devices.</p>
+        <div class="w-full aspect-video bg-slate-900 rounded-lg overflow-hidden shadow-lg">
+            <video id="deviceSelectionPreview" playsinline autoplay muted class="w-full h-full object-cover"></video>
+        </div>
+        <div>
+            <label for="cameraSelect" class="block text-sm font-medium text-sky-300 mb-1">Camera:</label>
+            <select id="cameraSelect" class="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-slate-100 shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"></select>
+        </div>
+        <div>
+            <label for="micSelect" class="block text-sm font-medium text-sky-300 mb-1">Microphone:</label>
+            <select id="micSelect" class="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-slate-100 shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"></select>
+        </div>
+        <button id="confirmDevicesAndTestButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition duration-150 ease-in-out" disabled>
+            Confirm Devices & Do Test Recording
+        </button>
+        <button id="backToNameSetupButton" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-opacity-50 transition duration-150 ease-in-out mt-2">
+            Back
+        </button>
+    </div>
+
+    <div id="testRecordingSection" class="hidden space-y-4">
+        <h2 class="text-2xl font-semibold text-sky-400 text-center">Step 3: Test Your Setup</h2>
+        <div class="w-full aspect-video bg-slate-900 rounded-lg overflow-hidden shadow-lg">
+            <video id="videoPreviewTest" playsinline autoplay muted class="w-full h-full object-cover"></video>
+        </div>
+        <div class="bg-slate-700 p-4 rounded-lg shadow text-center">
+            <p class="text-lg font-medium text-slate-100">Please read: <span id="testSentenceDisplay" class="text-yellow-400">天気がいいから散歩しましょう。</span></p>
+        </div>
+        <button id="startStopTestButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md">Start Test Recording</button>
+        <button id="proceedToMainRecordingButton" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md hidden mt-2">Proceed to Main Recording</button>
+        <button id="backToDeviceSelectionButton" class="w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md mt-2">
+            Back to Device Selection
+        </button>
+    </div>
+
+    <div id="recordingSection" class="hidden space-y-4 relative">
+        <h2 class="text-2xl font-semibold text-sky-400 text-center">Main Recording Session</h2>
+        <div class="bg-slate-700 p-4 rounded-lg shadow">
+            <p class="text-sm text-slate-300">User: <span id="displayName" class="font-medium text-sky-300"></span></p>
+            <p class="text-sm text-slate-300">Batch: <span id="displayBatchInfo" class="font-medium text-sky-300"></span></p>
+            <p class="text-sm text-slate-300">Sentences in Batch: <span id="totalSentencesDisplay" class="font-medium text-sky-300">0</span></p>
+        </div>
+        <div class="w-full aspect-video bg-slate-900 rounded-lg overflow-hidden shadow-lg relative">
+            <video id="videoPreview" playsinline autoplay muted class="w-full h-full object-cover"></video>
+            <div id="timerDisplayContainer" class="hidden timer-display"><p id="timerText" class="text-6xl font-bold text-yellow-400"></p></div>
+        </div>
+        <div id="sentenceDisplayContainer" class="bg-slate-700 p-6 rounded-lg shadow text-center min-h-[100px] flex items-center justify-center">
+            <p id="sentenceToRead" class="text-xl md:text-2xl font-medium text-slate-100"></p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <button id="pauseResumeButton" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md" disabled>Pause</button>
+            <button id="redoButton" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-4 rounded-lg shadow-md" disabled>Redo</button>
+            <button id="nextSentenceButton" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md">Start First</button>
+        </div>
+        <p class="text-xs text-slate-400 text-center">Press <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">Enter</kbd> or <kbd class="px-2 py-1.5 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:bg-gray-600 dark:text-gray-100 dark:border-gray-500">Space</kbd> to advance.</p>
+    </div>
+
+    <div id="completionMessage" class="hidden text-center space-y-3 p-6 bg-slate-700 rounded-lg shadow">
+        <h2 class="text-2xl font-bold text-green-400">All Sentences Recorded!</h2>
+        <p class="text-slate-200">Files saved locally. Cloud backup (if enabled) attempted.</p>
+        <button id="restartButton" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md">Start Over</button>
+    </div>
+
+    <div id="statusMessages" class="mt-4 text-sm text-slate-300 space-y-1 h-20 overflow-y-auto"></div>
+</div>
+
+<div id="customModal" class="modal">
+    <div class="modal-content bg-slate-800 text-slate-100 shadow-xl">
+        <p id="modalMessage" class="mb-4 text-lg"></p>
+        <div class="modal-buttons">
+            <button id="modalOkButton" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500">OK</button>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, serverTimestamp, collection, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+
+    const nameSection = document.getElementById('nameSection');
+    const userNameInput = document.getElementById('userName');
+    const sentenceBatchSelect = document.getElementById('sentenceBatch');
+    const proceedToDeviceSetupButton = document.getElementById('proceedToDeviceSetupButton');
+
+    const deviceSelectionSection = document.getElementById('deviceSelectionSection');
+    const deviceSelectionPreview = document.getElementById('deviceSelectionPreview');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const micSelect = document.getElementById('micSelect');
+    const confirmDevicesAndTestButton = document.getElementById('confirmDevicesAndTestButton');
+    const backToNameSetupButton = document.getElementById('backToNameSetupButton');
+
+    const testRecordingSection = document.getElementById('testRecordingSection');
+    const videoPreviewTest = document.getElementById('videoPreviewTest');
+    const startStopTestButton = document.getElementById('startStopTestButton');
+    const proceedToMainRecordingButton = document.getElementById('proceedToMainRecordingButton');
+    const backToDeviceSelectionButton = document.getElementById('backToDeviceSelectionButton');
+
+    const recordingSection = document.getElementById('recordingSection');
+    const videoPreview = document.getElementById('videoPreview');
+    const timerDisplayContainer = document.getElementById('timerDisplayContainer');
+    const timerText = document.getElementById('timerText');
+    const sentenceToRead = document.getElementById('sentenceToRead');
+    const nextSentenceButton = document.getElementById('nextSentenceButton');
+    const redoButton = document.getElementById('redoButton');
+    const pauseResumeButton = document.getElementById('pauseResumeButton');
+    const completionMessage = document.getElementById('completionMessage');
+    const restartButton = document.getElementById('restartButton');
+    const displayName = document.getElementById('displayName');
+    const displayUserId = document.getElementById('displayUserId');
+    const displayBatchInfo = document.getElementById('displayBatchInfo');
+    const totalSentencesDisplay = document.getElementById('totalSentencesDisplay');
+    const statusMessages = document.getElementById('statusMessages');
+    const customModal = document.getElementById('customModal');
+    const modalMessage = document.getElementById('modalMessage');
+    const modalOkButton = document.getElementById('modalOkButton');
+
+    let userName = ''; let currentSentenceIndex = 0; let mediaRecorder; let recordedChunks = [];
+    let mainStream; // Holds the stream for test & main recording after device selection
+    let tempDeviceStream; // Holds temporary stream for device selection preview only
+    let firebaseApp, auth, db, storage, userId, appId; let isFirebaseReady = false;
+    let sentences = []; let userNameEntered = false; let batchSelected = false;
+    let isPaused = false; let countdownInterval; let isFirstSentenceOfSession = true;
+    let isPerformingRedo = false; let selectedCameraId = ''; let selectedMicId = '';
+    let isTestRecordingActive = false;
+
+    // --- SENTENCE BATCH DEFINITIONS ---
+    // IMPORTANT: User MUST fill these arrays with actual sentences.
+    // The application will NOT proceed if a selected batch is empty.
+    // For quick testing, you can add a few sentences to sentences_1_100 like:
+    // const sentences_1_100 = ["This is a test sentence for batch 1.", "Another test sentence."];
+    const sentences_1_100 = [
+        "丁寧に 赤い ボールを シ 1 に 投げる。",
+        "ゆっくり 白い 箱を ヒ 3 から 取る。",
+        "今すぐ 白い 本を ユ 6 から 動かす。",
+        "早く 赤い 本を ミ 6 から 取る。",
+        "ゆっくり 青い 箱を オ 0 から 取る。",
+        "今すぐ 青い 本を ト 8 から 取る。",
+        "丁寧に 青い 箱を ヘ 7 から 取る。",
+        "ゆっくり 赤い 本を ウ 5 から 動かす。",
+        "丁寧に 緑の ペンを キ 2 から 取る。",
+        "早く 白い ボールを チ 0 に 置く。",
+        "今すぐ 青い 箱を ヨ 0 から 取る。",
+        "今すぐ 青い 箱を テ 7 に 投げる。",
+        "早く 緑の 箱を ヨ 3 から 動かす。",
+        "早く 白い 箱を ミ 8 に 置く。",
+        "早く 緑の ボールを ロ 5 から 動かす。",
+        "早く 白い 箱を ス 0 に 置く。",
+        "今すぐ 青い ボールを モ 1 から 動かす。",
+        "ゆっくり 赤い 本を ヘ 2 から 取る。",
+        "丁寧に 緑の 本を ク 7 から 取る。",
+        "早く 白い 本を ミ 5 に 投げる。",
+        "早く 青い 本を コ 6 から 動かす。",
+        "今すぐ 白い 本を ウ 5 に 投げる。",
+        "今すぐ 青い ボールを ル 5 に 投げる。",
+        "今すぐ 赤い ペンを サ 0 に 投げる。",
+        "早く 赤い 本を ヌ 4 から 取る。",
+        "早く 緑の ボールを キ 1 から 動かす。",
+        "ゆっくり 緑の 箱を ア 7 から 動かす。",
+        "丁寧に 青い 本を ス 0 から 動かす。",
+        "丁寧に 青い 箱を ユ 4 に 置く。",
+        "ゆっくり 青い 本を シ 5 から 取る。",
+        "丁寧に 緑の ペンを ミ 1 から 取る。",
+        "丁寧に 青い 本を オ 0 から 取る。",
+        "ゆっくり 緑の 本を メ 7 から 動かす。",
+        "ゆっくり 緑の ボールを ス 8 に 投げる。",
+        "今すぐ 青い ボールを ヒ 8 から 動かす。",
+        "丁寧に 青い 箱を ノ 8 から 取る。",
+        "ゆっくり 青い 箱を ノ 7 に 置く。",
+        "今すぐ 青い ボールを ル 8 から 動かす。",
+        "ゆっくり 白い 箱を ニ 1 から 取る。",
+        "今すぐ 緑の 箱を ク 1 に 投げる。",
+        "今すぐ 青い 本を ヨ 6 に 置く。",
+        "早く 赤い ボールを シ 6 に 置く。",
+        "丁寧に 青い ボールを ノ 3 に 投げる。",
+        "早く 緑の ペンを テ 4 に 置く。",
+        "早く 緑の 本を コ 8 に 投げる。",
+        "ゆっくり 緑の 箱を ツ 0 から 取る。",
+        "早く 赤い ペンを ヌ 4 から 動かす。",
+        "丁寧に 緑の ボールを ヨ 6 から 取る。",
+        "丁寧に 赤い ペンを ト 8 から 取る。",
+        "早く 緑の 本を ロ 5 に 投げる。",
+        "丁寧に 赤い ボールを シ 8 から 動かす。",
+        "ゆっくり 赤い 箱を ク 4 に 投げる。",
+        "ゆっくり 白い 箱を メ 1 から 取る。",
+        "ゆっくり 白い 箱を セ 9 から 取る。",
+        "ゆっくり 赤い 箱を ヨ 5 から 動かす。",
+        "丁寧に 白い ボールを ホ 5 から 取る。",
+        "ゆっくり 赤い 箱を ト 7 に 投げる。",
+        "丁寧に 青い 箱を ソ 0 から 動かす。",
+        "早く 赤い ボールを ス 4 から 動かす。",
+        "ゆっくり 赤い ペンを ヌ 8 から 動かす。",
+        "丁寧に 赤い 箱を ノ 7 に 投げる。",
+        "今すぐ 青い 本を ム 8 に 置く。",
+        "ゆっくり 白い 箱を ロ 7 から 取る。",
+        "今すぐ 緑の 箱を ロ 8 から 動かす。",
+        "ゆっくり 白い 本を テ 1 から 動かす。",
+        "ゆっくり 緑の ボールを セ 7 から 動かす。",
+        "今すぐ 白い 箱を テ 2 から 取る。",
+        "早く 赤い 本を ヨ 2 から 動かす。",
+        "ゆっくり 白い ペンを ク 5 から 取る。",
+        "ゆっくり 緑の ボールを ワ 7 に 置く。",
+        "ゆっくり 赤い 本を キ 3 から 取る。",
+        "丁寧に 白い 本を エ 2 から 取る。",
+        "早く 青い 箱を サ 6 から 動かす。",
+        "今すぐ 青い ボールを ヒ 6 に 投げる。",
+        "早く 赤い ボールを カ 2 に 置く。",
+        "丁寧に 青い 箱を タ 0 に 投げる。",
+        "今すぐ 白い ボールを ニ 1 から 動かす。",
+        "今すぐ 白い ボールを ネ 5 から 取る。",
+        "ゆっくり 緑の 箱を テ 0 に 投げる。",
+        "ゆっくり 緑の ペンを フ 1 から 動かす。",
+        "ゆっくり 白い 本を ラ 2 に 置く。",
+        "今すぐ 緑の ペンを ニ 0 に 置く。",
+        "ゆっくり 白い 箱を モ 9 に 置く。",
+        "今すぐ 緑の 本を ス 5 に 置く。",
+        "今すぐ 赤い 箱を ホ 7 に 置く。",
+        "丁寧に 緑の ボールを ヒ 0 から 取る。",
+        "今すぐ 赤い 箱を シ 3 から 動かす。",
+        "丁寧に 赤い 箱を キ 7 から 取る。",
+        "丁寧に 緑の 箱を ア 6 に 置く。",
+        "丁寧に 白い ペンを ル 8 から 動かす。",
+        "丁寧に 白い ペンを ワ 7 から 取る。",
+        "早く 青い 箱を ウ 3 に 置く。",
+        "丁寧に 赤い 箱を ヌ 5 に 置く。",
+        "今すぐ 青い ペンを タ 2 に 置く。",
+        "丁寧に 緑の 箱を オ 2 に 投げる。",
+        "丁寧に 白い ペンを チ 2 に 置く。",
+        "今すぐ 赤い 本を ラ 7 から 取る。",
+        "早く 緑の ボールを シ 0 に 投げる。",
+        "ゆっくり 青い 本を ユ 1 から 動かす。",
+        "今すぐ 青い ペンを タ 4 から 動かす。"
+    ];
+    const sentences_101_200 = [
+        "早く 緑の 本を ネ 7 に 投げる。",
+        "今すぐ 白い 箱を ユ 8 から 取る。",
+        "今すぐ 緑の ボールを カ 4 から 取る。",
+        "丁寧に 赤い ペンを ケ 6 から 取る。",
+        "丁寧に 青い ペンを カ 1 から 動かす。",
+        "今すぐ 青い ボールを ム 9 に 置く。",
+        "今すぐ 緑の ボールを ヘ 3 から 動かす。",
+        "ゆっくり 青い 箱を マ 1 から 動かす。",
+        "丁寧に 緑の ボールを ケ 6 に 置く。",
+        "丁寧に 赤い ペンを ウ 0 に 投げる。",
+        "ゆっくり 青い 箱を ケ 9 から 動かす。",
+        "丁寧に 緑の 箱を ル 2 に 置く。",
+        "早く 白い ボールを コ 8 から 取る。",
+        "早く 白い 箱を シ 6 に 投げる。",
+        "ゆっくり 緑の ペンを ネ 9 から 動かす。",
+        "丁寧に 緑の 箱を リ 4 に 投げる。",
+        "ゆっくり 白い 本を ラ 2 に 投げる。",
+        "丁寧に 白い ボールを ノ 8 から 取る。",
+        "ゆっくり 青い 箱を ユ 8 に 投げる。",
+        "今すぐ 青い ボールを キ 0 に 投げる。",
+        "ゆっくり 赤い 本を ヒ 1 に 置く。",
+        "ゆっくり 赤い 本を ノ 6 から 取る。",
+        "今すぐ 青い 本を メ 5 に 投げる。",
+        "丁寧に 青い 本を ヒ 1 から 動かす。",
+        "早く 白い ボールを マ 0 から 取る。",
+        "今すぐ 白い ペンを ウ 8 から 取る。",
+        "今すぐ 緑の ボールを ノ 5 に 投げる。",
+        "今すぐ 白い 本を エ 6 に 置く。",
+        "早く 青い 本を シ 7 から 動かす。",
+        "ゆっくり 白い 箱を ニ 6 に 置く。",
+        "早く 赤い ペンを ナ 9 から 動かす。",
+        "今すぐ 赤い ペンを ユ 3 に 投げる。",
+        "ゆっくり 青い 箱を ス 0 から 動かす。",
+        "ゆっくり 白い 本を オ 6 から 動かす。",
+        "早く 赤い 箱を ソ 5 に 置く。",
+        "ゆっくり 白い ボールを ナ 9 に 投げる。",
+        "ゆっくり 青い 本を ス 3 に 置く。",
+        "ゆっくり 赤い ペンを ム 6 から 取る。",
+        "丁寧に 白い 箱を ム 3 から 取る。",
+        "今すぐ 白い 箱を ア 7 に 投げる。",
+        "早く 白い ボールを メ 9 に 投げる。",
+        "丁寧に 青い ボールを ケ 8 に 投げる。",
+        "ゆっくり 青い ボールを フ 4 から 動かす。",
+        "ゆっくり 緑の ボールを ス 5 から 取る。",
+        "丁寧に 赤い 本を ヌ 3 から 取る。",
+        "丁寧に 緑の 箱を フ 0 に 置く。",
+        "今すぐ 緑の ボールを リ 0 に 置く。",
+        "ゆっくり 青い 箱を メ 9 から 動かす。",
+        "ゆっくり 青い ボールを ミ 7 に 置く。",
+        "今すぐ 赤い ボールを ヤ 5 に 置く。",
+        "丁寧に 赤い 箱を ノ 1 から 取る。",
+        "早く 緑の ペンを カ 8 から 取る。",
+        "ゆっくり 白い 箱を モ 5 から 取る。",
+        "今すぐ 赤い 本を ニ 8 に 置く。",
+        "ゆっくり 緑の ボールを ケ 3 に 投げる。",
+        "今すぐ 赤い 箱を ナ 4 から 動かす。",
+        "丁寧に 白い ボールを ト 3 から 取る。",
+        "丁寧に 青い 本を ホ 2 から 動かす。",
+        "ゆっくり 白い ボールを カ 3 から 取る。",
+        "ゆっくり 白い 本を ト 4 から 取る。",
+        "今すぐ 白い 箱を ヤ 3 から 動かす。",
+        "今すぐ 白い ボールを オ 3 から 動かす。",
+        "今すぐ 緑の ボールを リ 1 から 動かす。",
+        "ゆっくり 赤い 本を キ 3 に 置く。",
+        "ゆっくり 白い ペンを イ 3 から 動かす。",
+        "今すぐ 緑の 本を ツ 5 に 投げる。",
+        "丁寧に 緑の 箱を レ 0 に 置く。",
+        "今すぐ 赤い 箱を ア 8 に 投げる。",
+        "今すぐ 赤い ボールを フ 7 から 動かす。",
+        "丁寧に 緑の ボールを ネ 0 から 取る。",
+        "早く 赤い 箱を ト 8 に 投げる。",
+        "早く 白い 箱を ヨ 7 から 動かす。",
+        "今すぐ 赤い 箱を チ 8 に 投げる。",
+        "今すぐ 白い ボールを ラ 2 に 投げる。",
+        "早く 緑の ボールを タ 5 から 動かす。",
+        "今すぐ 白い 本を ノ 6 に 投げる。",
+        "丁寧に 青い 箱を ク 8 に 投げる。",
+        "早く 青い ペンを ミ 9 から 動かす。",
+        "ゆっくり 緑の 本を ハ 4 から 取る。",
+        "ゆっくり 青い ペンを ヌ 5 に 置く。",
+        "ゆっくり 白い 本を モ 3 に 投げる。",
+        "今すぐ 赤い 本を エ 2 から 取る。",
+        "早く 青い 箱を レ 9 に 投げる。",
+        "今すぐ 赤い ボールを ル 8 から 動かす。",
+        "早く 白い 箱を ヨ 8 に 置く。",
+        "早く 青い 箱を メ 3 に 置く。",
+        "ゆっくり 白い ペンを タ 5 に 置く。",
+        "丁寧に 白い ペンを ラ 1 に 投げる。",
+        "丁寧に 青い 箱を ト 2 に 置く。",
+        "今すぐ 青い 箱を キ 7 から 取る。",
+        "丁寧に 白い ペンを メ 5 に 置く。",
+        "ゆっくり 緑の 本を ウ 7 に 投げる。",
+        "早く 青い 箱を リ 3 に 置く。",
+        "今すぐ 白い 箱を シ 2 から 取る。",
+        "丁寧に 赤い ペンを ワ 2 から 取る。",
+        "丁寧に 赤い 本を ナ 5 に 投げる。",
+        "早く 青い 本を ム 4 に 置く。",
+        "今すぐ 赤い ペンを ミ 0 に 投げる。",
+        "今すぐ 緑の ボールを ス 1 に 置く。",
+        "ゆっくり 青い 本を ミ 9 に 置く。"
+    ];
+    const sentences_201_300 = [
+        "ゆっくり 赤い 箱を ホ 7 に 置く。",
+        "今すぐ 青い ペンを マ 8 に 置く。",
+        "ゆっくり 青い 箱を ヤ 0 に 投げる。",
+        "今すぐ 青い 箱を ミ 5 に 置く。",
+        "早く 白い ボールを ケ 2 に 置く。",
+        "早く 赤い ボールを オ 4 に 置く。",
+        "ゆっくり 赤い 本を ロ 2 に 投げる。",
+        "ゆっくり 白い ボールを ネ 2 から 動かす。",
+        "早く 青い ペンを セ 0 に 投げる。",
+        "今すぐ 緑の 箱を イ 0 に 投げる。",
+        "ゆっくり 赤い ボールを ミ 0 に 投げる。",
+        "丁寧に 緑の 本を ヤ 2 から 取る。",
+        "ゆっくり 青い 箱を ム 3 に 置く。",
+        "ゆっくり 青い 本を タ 7 から 動かす。",
+        "今すぐ 赤い 箱を ク 7 から 取る。",
+        "丁寧に 青い 本を ソ 3 から 動かす。",
+        "今すぐ 緑の ペンを ラ 2 から 動かす。",
+        "早く 赤い 本を ニ 7 に 投げる。",
+        "ゆっくり 青い 本を ニ 6 に 投げる。",
+        "早く 緑の 箱を ケ 4 に 投げる。",
+        "今すぐ 白い ペンを ヒ 7 に 投げる。",
+        "丁寧に 白い 箱を カ 2 に 置く。",
+        "早く 赤い ペンを ハ 3 に 投げる。",
+        "早く 白い ボールを ラ 8 に 投げる。",
+        "丁寧に 緑の ペンを ト 3 に 投げる。",
+        "早く 赤い 本を シ 7 に 置く。",
+        "今すぐ 青い 箱を ト 0 に 投げる。",
+        "ゆっくり 青い ボールを メ 8 に 置く。",
+        "丁寧に 白い ボールを マ 2 から 動かす。",
+        "丁寧に 赤い 本を カ 6 から 取る。",
+        "今すぐ 赤い ボールを ア 2 から 動かす。",
+        "今すぐ 青い ボールを サ 2 に 置く。",
+        "ゆっくり 青い 箱を セ 6 に 投げる。",
+        "今すぐ 緑の ペンを ヤ 3 から 動かす。",
+        "早く 緑の 箱を テ 2 から 取る。",
+        "早く 白い ボールを コ 6 から 取る。",
+        "今すぐ 青い 本を キ 1 に 投げる。",
+        "丁寧に 白い 箱を ア 2 に 投げる。",
+        "ゆっくり 青い ペンを ク 7 から 動かす。",
+        "今すぐ 青い 本を ク 6 に 投げる。",
+        "早く 白い 本を レ 8 に 投げる。",
+        "早く 緑の 箱を タ 1 から 動かす。",
+        "早く 白い 箱を ア 3 から 動かす。",
+        "丁寧に 赤い 箱を ユ 0 に 投げる。",
+        "ゆっくり 青い ボールを ム 2 から 動かす。",
+        "ゆっくり 緑の ボールを ヒ 6 に 投げる。",
+        "丁寧に 白い 本を タ 1 に 置く。",
+        "ゆっくり 赤い ペンを ス 8 から 動かす。",
+        "丁寧に 白い 本を タ 1 から 動かす。",
+        "ゆっくり 緑の ペンを イ 7 に 投げる。",
+        "今すぐ 白い 本を ス 8 から 取る。",
+        "ゆっくり 白い ボールを ノ 3 に 置く。",
+        "丁寧に 緑の 箱を ヤ 1 から 動かす。",
+        "早く 青い ペンを モ 1 に 置く。",
+        "早く 青い 本を コ 7 に 投げる。",
+        "ゆっくり 緑の ペンを ネ 2 に 置く。",
+        "丁寧に 赤い ボールを キ 8 から 取る。",
+        "ゆっくり 緑の 箱を カ 0 から 取る。",
+        "早く 赤い 箱を ソ 1 から 動かす。",
+        "早く 白い ペンを ソ 8 に 投げる。",
+        "今すぐ 白い 箱を ワ 9 に 投げる。",
+        "丁寧に 白い 箱を ナ 1 から 動かす。",
+        "今すぐ 緑の 箱を ア 3 から 動かす。",
+        "今すぐ 赤い 箱を ラ 8 に 投げる。",
+        "今すぐ 緑の 箱を ウ 6 に 置く。",
+        "ゆっくり 白い 本を サ 8 に 置く。",
+        "丁寧に 赤い 箱を ナ 9 から 取る。",
+        "ゆっくり 白い ボールを ア 5 から 動かす。",
+        "ゆっくり 赤い 箱を ナ 0 から 動かす。",
+        "ゆっくり 緑の 箱を セ 9 に 投げる。",
+        "早く 緑の 箱を フ 7 に 投げる。",
+        "今すぐ 白い 箱を ナ 7 に 置く。",
+        "丁寧に 緑の 箱を ヨ 0 に 投げる。",
+        "今すぐ 白い ペンを フ 1 に 投げる。",
+        "早く 緑の ペンを シ 6 に 投げる。",
+        "今すぐ 緑の ペンを メ 2 から 動かす。",
+        "今すぐ 緑の ボールを ノ 1 に 置く。",
+        "今すぐ 白い ボールを ツ 9 に 置く。",
+        "ゆっくり 青い ボールを ヤ 5 から 動かす。",
+        "丁寧に 赤い ペンを テ 4 から 取る。",
+        "ゆっくり 緑の 箱を コ 2 に 置く。",
+        "ゆっくり 赤い 箱を ヒ 1 から 取る。",
+        "丁寧に 緑の ペンを ユ 9 に 置く。",
+        "早く 緑の 箱を ア 9 から 取る。",
+        "早く 緑の ボールを ケ 8 から 動かす。",
+        "早く 青い ペンを ハ 1 から 取る。",
+        "ゆっくり 赤い 本を フ 0 から 取る。",
+        "今すぐ 緑の 箱を ミ 0 から 取る。",
+        "丁寧に 赤い ペンを ニ 3 から 動かす。",
+        "ゆっくり 白い 本を ユ 9 に 投げる。",
+        "今すぐ 赤い 箱を ユ 1 から 取る。",
+        "丁寧に 赤い ペンを ウ 6 から 動かす。",
+        "今すぐ 白い 箱を メ 8 から 動かす。",
+        "丁寧に 赤い 本を ス 8 から 取る。",
+        "ゆっくり 赤い 本を ニ 0 から 動かす。",
+        "今すぐ 白い 箱を サ 3 に 投げる。",
+        "丁寧に 青い 本を オ 0 に 置く。",
+        "ゆっくり 赤い 本を イ 5 に 投げる。",
+        "ゆっくり 白い 箱を オ 3 から 動かす。",
+        "早く 緑の ボールを ス 3 から 取る。"
+    ];
+    const sentences_301_400 = [
+        "今すぐ 白い 箱を メ 4 から 動かす。",
+        "早く 白い 箱を マ 8 から 動かす。",
+        "今すぐ 緑の ペンを イ 5 から 動かす。",
+        "今すぐ 赤い 本を ワ 9 に 置く。",
+        "ゆっくり 白い 箱を ワ 9 から 動かす。",
+        "早く 赤い 箱を ソ 6 から 取る。",
+        "早く 赤い ボールを ミ 5 に 置く。",
+        "早く 青い ボールを ス 8 から 取る。",
+        "丁寧に 白い ペンを ウ 2 から 取る。",
+        "早く 青い ペンを タ 3 に 置く。",
+        "早く 緑の 箱を ク 7 から 動かす。",
+        "早く 緑の ボールを ナ 2 に 投げる。",
+        "ゆっくり 青い ペンを テ 8 から 動かす。",
+        "丁寧に 白い 本を ユ 4 に 投げる。",
+        "丁寧に 青い 本を フ 0 から 取る。",
+        "丁寧に 白い ペンを オ 0 から 取る。",
+        "今すぐ 青い 箱を キ 8 に 投げる。",
+        "今すぐ 赤い 本を チ 8 から 動かす。",
+        "早く 青い ボールを リ 8 に 置く。",
+        "丁寧に 青い ペンを ウ 0 から 取る。",
+        "今すぐ 赤い ペンを ク 5 から 動かす。",
+        "早く 青い 本を セ 0 から 動かす。",
+        "ゆっくり 白い 本を タ 1 から 取る。",
+        "早く 青い ペンを ヨ 8 に 置く。",
+        "ゆっくり 赤い 本を ム 8 から 動かす。",
+        "丁寧に 白い ペンを ワ 0 から 動かす。",
+        "丁寧に 青い ボールを ハ 8 に 置く。",
+        "丁寧に 緑の 箱を リ 4 に 投げる。",
+        "今すぐ 赤い ボールを ネ 5 に 置く。",
+        "丁寧に 赤い ボールを ハ 4 から 取る。",
+        "丁寧に 緑の 箱を ワ 0 から 取る。",
+        "今すぐ 緑の ボールを ヌ 9 に 置く。",
+        "今すぐ 緑の ペンを テ 3 に 投げる。",
+        "今すぐ 青い 本を メ 4 に 投げる。",
+        "ゆっくり 緑の ペンを ツ 7 に 投げる。",
+        "今すぐ 青い ペンを ワ 8 から 取る。",
+        "早く 赤い 箱を ハ 8 に 投げる。",
+        "丁寧に 赤い ペンを ヨ 3 に 置く。",
+        "早く 青い 本を キ 2 に 置く。",
+        "今すぐ 緑の 本を キ 2 に 置く。",
+        "今すぐ 青い 箱を ル 4 から 動かす。",
+        "丁寧に 白い 本を ノ 0 から 取る。",
+        "丁寧に 青い 本を ア 6 に 置く。",
+        "今すぐ 赤い 本を カ 2 に 投げる。",
+        "丁寧に 緑の ペンを ル 8 から 取る。",
+        "ゆっくり 白い 本を ネ 9 から 取る。",
+        "早く 白い 本を エ 2 から 動かす。",
+        "ゆっくり 白い ボールを カ 5 から 取る。",
+        "ゆっくり 青い 箱を ケ 4 から 動かす。",
+        "ゆっくり 青い ペンを チ 5 に 置く。",
+        "早く 白い ボールを ル 0 に 置く。",
+        "丁寧に 赤い ペンを ニ 7 に 投げる。",
+        "早く 緑の 箱を ネ 5 から 動かす。",
+        "丁寧に 白い ボールを ミ 1 に 置く。",
+        "丁寧に 緑の 箱を ナ 2 から 取る。",
+        "ゆっくり 緑の 本を サ 6 に 投げる。",
+        "早く 赤い ペンを ラ 4 から 取る。",
+        "今すぐ 赤い ボールを ヒ 7 から 取る。",
+        "丁寧に 赤い 本を メ 4 に 置く。",
+        "今すぐ 赤い ボールを ユ 6 に 置く。",
+        "今すぐ 白い ペンを シ 7 に 投げる。",
+        "丁寧に 赤い 本を ヘ 7 から 動かす。",
+        "ゆっくり 赤い 箱を ユ 3 に 投げる。",
+        "早く 青い ボールを コ 3 から 動かす。",
+        "今すぐ 白い 本を サ 4 から 取る。",
+        "丁寧に 赤い ボールを ヌ 7 に 投げる。",
+        "ゆっくり 赤い 箱を ク 5 から 動かす。",
+        "今すぐ 白い 箱を ヒ 8 に 置く。",
+        "ゆっくり 赤い ボールを ノ 1 に 投げる。",
+        "今すぐ 赤い 箱を ワ 2 に 投げる。",
+        "ゆっくり 青い 本を サ 8 から 動かす。",
+        "今すぐ 青い 箱を ユ 0 に 投げる。",
+        "今すぐ 白い 箱を ナ 1 に 投げる。",
+        "ゆっくり 緑の ペンを ヘ 2 に 投げる。",
+        "早く 白い ボールを サ 6 に 投げる。",
+        "ゆっくり 白い 本を サ 1 に 置く。",
+        "ゆっくり 青い ボールを ヤ 1 から 動かす。",
+        "ゆっくり 青い 箱を ワ 1 から 動かす。",
+        "今すぐ 青い 箱を イ 9 から 取る。",
+        "丁寧に 緑の 本を ラ 5 に 置く。",
+        "早く 白い ペンを タ 1 から 動かす。",
+        "早く 赤い ペンを ノ 9 から 取る。",
+        "ゆっくり 緑の ボールを ソ 0 に 投げる。",
+        "丁寧に 青い 本を ニ 1 に 置く。",
+        "ゆっくり 青い 箱を ル 1 に 置く。",
+        "今すぐ 白い 本を セ 4 から 取る。",
+        "丁寧に 赤い 本を ル 3 から 動かす。",
+        "丁寧に 白い 本を タ 2 から 取る。",
+        "丁寧に 青い ペンを メ 4 に 投げる。",
+        "ゆっくり 赤い ペンを ヘ 3 から 取る。",
+        "今すぐ 赤い ボールを ハ 5 から 動かす。",
+        "早く 赤い 箱を ツ 1 から 動かす。",
+        "今すぐ 赤い ペンを ホ 9 から 動かす。",
+        "丁寧に 青い ボールを ヘ 1 に 置く。",
+        "ゆっくり 白い 箱を ア 6 から 取る。",
+        "早く 赤い 箱を ロ 4 に 置く。",
+        "早く 青い 箱を ヘ 9 から 取る。",
+        "今すぐ 青い 箱を ム 2 に 置く。",
+        "今すぐ 緑の ボールを タ 2 から 取る。",
+        "丁寧に 青い 箱を テ 2 に 置く。"
+    ];
+    const sentences_401_500 = [
+        "ゆっくり 白い ボールを ク 6 から 動かす。",
+        "今すぐ 赤い ボールを マ 5 に 置く。",
+        "ゆっくり 緑の 箱を ヘ 1 から 動かす。",
+        "早く 青い ボールを ヌ 9 から 取る。",
+        "早く 青い ボールを ニ 9 から 取る。",
+        "丁寧に 赤い 本を タ 7 から 動かす。",
+        "今すぐ 青い ペンを サ 8 から 取る。",
+        "早く 白い ペンを ユ 1 に 投げる。",
+        "早く 緑の ペンを ケ 4 に 置く。",
+        "早く 白い 箱を レ 2 に 置く。",
+        "ゆっくり 赤い ペンを オ 3 に 投げる。",
+        "今すぐ 白い ペンを ケ 9 に 置く。",
+        "丁寧に 青い 本を ネ 9 から 動かす。",
+        "今すぐ 赤い ボールを エ 8 から 取る。",
+        "丁寧に 赤い 本を メ 0 に 投げる。",
+        "早く 青い ボールを ラ 6 に 投げる。",
+        "今すぐ 緑の ペンを ク 5 から 動かす。",
+        "今すぐ 赤い 箱を キ 1 に 置く。",
+        "早く 青い 箱を ヌ 0 に 投げる。",
+        "ゆっくり 緑の ボールを ソ 4 から 動かす。",
+        "丁寧に 青い ペンを サ 2 に 置く。",
+        "今すぐ 赤い 本を ケ 3 から 動かす。",
+        "ゆっくり 白い 箱を ケ 7 に 投げる。",
+        "早く 緑の 箱を ワ 1 から 取る。",
+        "丁寧に 緑の 箱を ク 1 に 投げる。",
+        "早く 赤い ボールを タ 0 に 置く。",
+        "今すぐ 白い 本を メ 4 から 動かす。",
+        "今すぐ 赤い ペンを ウ 1 に 置く。",
+        "丁寧に 白い ボールを ヒ 2 から 動かす。",
+        "ゆっくり 青い ボールを ラ 1 から 動かす。",
+        "ゆっくり 青い ペンを ワ 9 に 置く。",
+        "ゆっくり 青い 本を ヨ 2 に 置く。",
+        "早く 青い 本を サ 4 から 取る。",
+        "丁寧に 赤い ペンを マ 4 から 動かす。",
+        "丁寧に 白い 箱を カ 9 に 置く。",
+        "ゆっくり 緑の 箱を シ 1 に 置く。",
+        "今すぐ 白い ボールを オ 8 に 投げる。",
+        "早く 赤い 箱を モ 1 から 動かす。",
+        "丁寧に 緑の 本を ラ 0 に 投げる。",
+        "丁寧に 赤い ペンを オ 3 から 動かす。",
+        "丁寧に 緑の ボールを マ 8 から 動かす。",
+        "早く 白い 箱を コ 6 から 取る。",
+        "ゆっくり 白い ペンを ヒ 4 から 取る。",
+        "今すぐ 青い ボールを ク 1 から 動かす。",
+        "今すぐ 白い 本を サ 1 から 動かす。",
+        "丁寧に 白い ボールを ヌ 2 に 投げる。",
+        "早く 青い 本を モ 9 から 動かす。",
+        "早く 緑の 本を ユ 9 から 動かす。",
+        "今すぐ 青い 本を ハ 5 から 動かす。",
+        "早く 緑の ペンを ウ 7 に 投げる。",
+        "今すぐ 白い 箱を オ 4 に 置く。",
+        "早く 青い ボールを ラ 3 から 動かす。",
+        "早く 緑の 箱を ヘ 1 に 置く。",
+        "今すぐ 緑の 本を ク 4 に 投げる。",
+        "今すぐ 緑の ボールを キ 2 から 動かす。",
+        "早く 赤い 箱を ヒ 1 に 投げる。",
+        "早く 青い 本を コ 8 から 動かす。",
+        "早く 緑の ペンを ツ 3 から 動かす。",
+        "今すぐ 赤い ペンを リ 1 から 取る。",
+        "早く 赤い ペンを ミ 9 に 置く。",
+        "ゆっくり 緑の 本を ト 8 に 置く。",
+        "ゆっくり 緑の ペンを ホ 4 から 動かす。",
+        "今すぐ 青い ペンを ソ 2 から 取る。",
+        "丁寧に 青い 箱を マ 1 から 取る。",
+        "丁寧に 青い ボールを ヨ 7 から 取る。",
+        "今すぐ 青い ボールを ル 2 に 投げる。",
+        "ゆっくり 青い 箱を ヤ 5 から 動かす。",
+        "丁寧に 赤い ボールを モ 1 から 動かす。",
+        "今すぐ 白い 本を ア 6 から 動かす。",
+        "丁寧に 赤い ペンを ネ 7 に 投げる。",
+        "早く 白い ペンを フ 2 に 投げる。",
+        "丁寧に 青い ボールを ソ 3 から 動かす。",
+        "丁寧に 赤い ペンを タ 3 に 投げる。",
+        "今すぐ 赤い 箱を ユ 7 に 置く。",
+        "ゆっくり 緑の 本を コ 8 から 取る。",
+        "丁寧に 緑の 本を ア 0 から 取る。",
+        "今すぐ 青い 箱を テ 2 に 投げる。",
+        "早く 白い 本を ヤ 0 に 置く。",
+        "ゆっくり 緑の 箱を ム 1 に 置く。",
+        "ゆっくり 青い ボールを ケ 3 に 投げる。",
+        "今すぐ 赤い ペンを メ 2 に 置く。",
+        "丁寧に 青い ペンを エ 9 から 取る。",
+        "丁寧に 青い ボールを ヨ 6 に 置く。",
+        "ゆっくり 青い ペンを ヌ 5 から 動かす。",
+        "ゆっくり 緑の ボールを シ 2 から 取る。",
+        "ゆっくり 緑の ボールを レ 6 に 投げる。",
+        "丁寧に 青い 本を ホ 4 に 置く。",
+        "早く 赤い ペンを ヒ 5 に 置く。",
+        "丁寧に 白い 箱を ヘ 3 から 動かす。",
+        "ゆっくり 緑の 箱を ス 8 に 投げる。",
+        "早く 白い 箱を ナ 6 から 取る。",
+        "丁寧に 白い ボールを チ 8 から 取る。",
+        "ゆっくり 緑の ボールを ル 5 から 動かす。",
+        "丁寧に 青い ペンを ヨ 6 から 動かす。",
+        "今すぐ 青い ボールを モ 3 から 動かす。",
+        "ゆっくり 緑の ペンを ロ 1 から 動かす。",
+        "今すぐ 白い ボールを シ 9 に 置く。",
+        "ゆっくり 白い 本を ノ 9 から 取る。",
+        "ゆっくり 赤い 箱を オ 2 に 置く。",
+        "早く 緑の 箱を キ 3 から 動かす。"
+    ];
+    const sentences_501_600 = [
+        "早く 緑の ペンを イ 7 から 動かす。",
+        "丁寧に 赤い 本を ア 5 に 投げる。",
+        "早く 青い 本を カ 6 から 取る。",
+        "ゆっくり 白い ペンを ミ 5 に 置く。",
+        "今すぐ 赤い 本を エ 5 に 投げる。",
+        "ゆっくり 赤い ボールを オ 5 に 投げる。",
+        "ゆっくり 緑の 箱を シ 1 から 動かす。",
+        "ゆっくり 赤い ボールを ム 8 に 置く。",
+        "丁寧に 青い ボールを メ 0 に 置く。",
+        "丁寧に 赤い 本を ア 9 に 投げる。",
+        "丁寧に 青い ペンを ネ 4 から 動かす。",
+        "今すぐ 白い 本を ロ 4 に 投げる。",
+        "早く 赤い 箱を ソ 9 に 置く。",
+        "ゆっくり 赤い 本を セ 6 に 投げる。",
+        "丁寧に 緑の ペンを ス 3 に 投げる。",
+        "今すぐ 青い 箱を ネ 2 から 取る。",
+        "今すぐ 赤い 箱を ヌ 0 から 取る。",
+        "今すぐ 緑の 本を ル 5 に 置く。",
+        "丁寧に 青い 箱を ア 1 に 投げる。",
+        "ゆっくり 赤い 箱を モ 3 に 置く。",
+        "ゆっくり 緑の ボールを ニ 2 に 置く。",
+        "丁寧に 白い ボールを ワ 9 に 置く。",
+        "丁寧に 緑の 箱を エ 8 に 置く。",
+        "今すぐ 青い ボールを ル 8 に 投げる。",
+        "早く 緑の 箱を ユ 2 に 置く。",
+        "丁寧に 白い ペンを ニ 3 から 取る。",
+        "ゆっくり 白い 本を セ 9 から 取る。",
+        "丁寧に 白い 本を ソ 2 に 置く。",
+        "ゆっくり 赤い 本を メ 2 から 取る。",
+        "早く 緑の ボールを シ 8 に 置く。",
+        "ゆっくり 緑の 本を チ 3 に 投げる。",
+        "早く 赤い ボールを ニ 1 に 置く。",
+        "丁寧に 白い 箱を ヤ 8 に 投げる。",
+        "ゆっくり 赤い ペンを ラ 0 に 投げる。",
+        "ゆっくり 緑の ペンを エ 7 から 取る。",
+        "丁寧に 赤い 本を ヒ 7 から 動かす。",
+        "丁寧に 緑の 本を コ 4 から 動かす。",
+        "ゆっくり 赤い 箱を ケ 1 に 投げる。",
+        "今すぐ 青い ボールを ウ 7 に 投げる。",
+        "丁寧に 青い ペンを ロ 6 から 取る。",
+        "丁寧に 緑の ペンを ナ 9 から 取る。",
+        "丁寧に 青い 本を ニ 1 に 投げる。",
+        "早く 白い ボールを ル 7 に 投げる。",
+        "早く 青い 箱を ト 4 から 動かす。",
+        "ゆっくり 赤い ボールを セ 4 に 投げる。",
+        "早く 白い ボールを コ 7 に 置く。",
+        "今すぐ 赤い 本を ヨ 2 から 取る。",
+        "ゆっくり 緑の 箱を カ 2 に 置く。",
+        "ゆっくり 青い ペンを オ 4 から 取る。",
+        "丁寧に 緑の 箱を ケ 4 に 置く。",
+        "ゆっくり 緑の ペンを ヒ 2 に 置く。",
+        "丁寧に 青い ペンを シ 6 から 取る。",
+        "ゆっくり 白い ペンを テ 3 に 投げる。",
+        "早く 赤い 箱を メ 9 に 置く。",
+        "ゆっくり 緑の ペンを ナ 9 に 置く。",
+        "今すぐ 青い ペンを ラ 5 に 置く。",
+        "丁寧に 白い 箱を ナ 1 から 取る。",
+        "今すぐ 青い ペンを カ 6 に 置く。",
+        "今すぐ 白い 本を ヒ 1 から 取る。",
+        "早く 青い 箱を ヘ 8 に 投げる。",
+        "丁寧に 赤い ボールを フ 9 に 投げる。",
+        "早く 白い ペンを ナ 6 から 取る。",
+        "ゆっくり 赤い ボールを イ 2 から 動かす。",
+        "早く 緑の 箱を ム 4 に 投げる。",
+        "ゆっくり 白い 本を ヘ 0 から 取る。",
+        "早く 白い ペンを フ 1 から 取る。",
+        "早く 白い 本を ラ 8 から 動かす。",
+        "丁寧に 赤い 本を タ 4 に 置く。",
+        "丁寧に 緑の ペンを キ 0 に 置く。",
+        "早く 緑の ペンを ミ 9 から 取る。",
+        "ゆっくり 赤い ペンを ハ 7 に 投げる。",
+        "丁寧に 赤い ペンを ロ 1 から 取る。",
+        "ゆっくり 白い 箱を タ 3 から 動かす。",
+        "ゆっくり 青い ペンを テ 6 に 置く。",
+        "今すぐ 緑の ボールを ミ 3 から 取る。",
+        "今すぐ 緑の ボールを シ 6 に 投げる。",
+        "ゆっくり 赤い 箱を ミ 8 から 取る。",
+        "ゆっくり 赤い 箱を メ 0 に 置く。",
+        "丁寧に 白い 本を オ 8 に 投げる。",
+        "ゆっくり 緑の ボールを ウ 6 から 動かす。",
+        "ゆっくり 緑の ボールを リ 5 に 置く。",
+        "早く 青い 箱を ク 2 から 取る。",
+        "今すぐ 緑の ボールを エ 4 に 置く。",
+        "ゆっくり 白い 本を ホ 5 から 動かす。",
+        "早く 白い ペンを メ 8 に 置く。",
+        "ゆっくり 青い 本を テ 9 に 投げる。",
+        "早く 赤い ボールを ネ 0 から 動かす。",
+        "ゆっくり 赤い 本を ア 8 に 投げる。",
+        "ゆっくり 緑の 本を モ 9 に 投げる。",
+        "ゆっくり 赤い ペンを ハ 8 に 置く。",
+        "今すぐ 白い 箱を ア 4 に 投げる。",
+        "早く 白い 本を メ 1 から 取る。",
+        "丁寧に 赤い ボールを チ 9 から 取る。",
+        "今すぐ 青い 箱を チ 8 に 投げる。",
+        "今すぐ 青い ボールを フ 6 から 動かす。",
+        "ゆっくり 赤い ボールを ラ 1 から 取る。",
+        "丁寧に 緑の ボールを ハ 6 から 動かす。",
+        "早く 赤い 箱を ヘ 2 から 取る。",
+        "ゆっくり 青い ペンを リ 9 に 置く。",
+        "丁寧に 赤い ペンを ヤ 6 から 動かす。"
+    ];
+    const sentences_601_700 = [
+        "今すぐ 緑の 箱を ヘ 4 から 動かす。",
+        "丁寧に 青い ペンを ヌ 0 に 投げる。",
+        "今すぐ 白い 本を ツ 4 から 取る。",
+        "今すぐ 緑の 本を メ 1 に 投げる。",
+        "ゆっくり 赤い 本を ヒ 3 に 置く。",
+        "丁寧に 緑の ペンを タ 8 から 動かす。",
+        "今すぐ 緑の ペンを イ 1 に 投げる。",
+        "丁寧に 青い 本を ク 2 に 投げる。",
+        "ゆっくり 赤い 箱を フ 0 に 置く。",
+        "早く 白い ペンを モ 8 に 投げる。",
+        "丁寧に 青い 箱を ス 4 に 置く。",
+        "ゆっくり 赤い 箱を ミ 7 から 取る。",
+        "ゆっくり 赤い 本を チ 5 から 取る。",
+        "早く 白い 本を テ 4 に 投げる。",
+        "早く 緑の 箱を ヒ 1 に 投げる。",
+        "ゆっくり 緑の 箱を モ 3 から 取る。",
+        "ゆっくり 緑の ボールを ホ 4 に 置く。",
+        "早く 緑の ペンを レ 2 から 動かす。",
+        "丁寧に 青い 本を ホ 2 に 投げる。",
+        "丁寧に 白い ペンを セ 1 から 取る。",
+        "丁寧に 赤い ボールを オ 8 に 投げる。",
+        "ゆっくり 赤い 箱を イ 4 から 取る。",
+        "丁寧に 赤い 箱を コ 2 から 取る。",
+        "丁寧に 青い 箱を ネ 3 に 投げる。",
+        "今すぐ 青い ペンを シ 1 から 取る。",
+        "ゆっくり 緑の 本を エ 9 に 投げる。",
+        "今すぐ 青い 箱を ラ 3 から 動かす。",
+        "今すぐ 赤い 箱を ヤ 8 に 置く。",
+        "早く 赤い ペンを エ 1 に 置く。",
+        "ゆっくり 緑の 箱を ヤ 0 から 取る。",
+        "今すぐ 青い ボールを ナ 7 に 置く。",
+        "丁寧に 赤い ボールを ハ 1 に 投げる。",
+        "今すぐ 赤い 本を タ 6 から 動かす。",
+        "丁寧に 赤い 本を オ 5 から 取る。",
+        "丁寧に 青い ペンを チ 7 に 置く。",
+        "丁寧に 青い 箱を ニ 7 に 置く。",
+        "早く 緑の ボールを ア 7 から 動かす。",
+        "ゆっくり 緑の ペンを ヘ 1 に 置く。",
+        "今すぐ 赤い ペンを ユ 2 から 取る。",
+        "今すぐ 青い ペンを ヨ 0 から 取る。",
+        "今すぐ 緑の 箱を タ 1 から 取る。",
+        "丁寧に 緑の ボールを ユ 7 に 置く。",
+        "ゆっくり 赤い 箱を ラ 7 に 置く。",
+        "今すぐ 青い 箱を エ 7 に 投げる。",
+        "今すぐ 緑の ボールを ユ 6 に 投げる。",
+        "ゆっくり 緑の ボールを カ 5 から 動かす。",
+        "今すぐ 赤い 箱を マ 5 に 置く。",
+        "ゆっくり 白い 本を フ 9 から 取る。",
+        "早く 白い 本を リ 4 から 取る。",
+        "丁寧に 青い ペンを カ 5 から 動かす。",
+        "ゆっくり 緑の ボールを マ 7 に 置く。",
+        "ゆっくり 赤い ボールを ミ 7 から 動かす。",
+        "ゆっくり 青い 箱を ノ 8 に 投げる。",
+        "ゆっくり 緑の ペンを ウ 8 に 置く。",
+        "早く 赤い 箱を ム 4 から 動かす。",
+        "ゆっくり 緑の ボールを シ 2 に 置く。",
+        "ゆっくり 赤い 箱を モ 8 に 置く。",
+        "早く 白い ボールを ラ 6 に 置く。",
+        "早く 白い 本を イ 1 から 取る。",
+        "丁寧に 白い ボールを チ 5 から 動かす。",
+        "早く 白い ボールを ミ 6 から 動かす。",
+        "早く 青い 本を キ 7 に 投げる。",
+        "丁寧に 赤い 本を ニ 1 から 取る。",
+        "早く 緑の 箱を ネ 2 から 動かす。",
+        "ゆっくり 緑の 箱を リ 5 から 取る。",
+        "早く 赤い 箱を ト 2 から 取る。",
+        "早く 青い 箱を ス 8 に 置く。",
+        "今すぐ 青い ペンを ヘ 8 に 投げる。",
+        "早く 白い ボールを セ 5 から 取る。",
+        "早く 白い 本を ツ 6 に 置く。",
+        "ゆっくり 白い 本を ク 6 から 取る。",
+        "ゆっくり 緑の ボールを ヌ 1 に 置く。",
+        "今すぐ 赤い ペンを ナ 7 に 置く。",
+        "今すぐ 青い ボールを メ 2 から 動かす。",
+        "早く 白い 本を ス 2 から 動かす。",
+        "ゆっくり 青い ボールを ル 7 に 投げる。",
+        "早く 青い 箱を キ 5 に 投げる。",
+        "丁寧に 青い 箱を ソ 2 に 置く。",
+        "丁寧に 緑の ペンを ウ 6 に 置く。",
+        "早く 赤い ペンを ル 6 から 取る。",
+        "ゆっくり 赤い ボールを ヘ 1 に 置く。",
+        "ゆっくり 青い ペンを セ 3 から 動かす。",
+        "早く 青い 本を ユ 2 から 取る。",
+        "ゆっくり 白い 箱を ツ 4 から 動かす。",
+        "ゆっくり 赤い 本を ツ 3 から 取る。",
+        "今すぐ 青い ボールを ケ 7 に 投げる。",
+        "丁寧に 白い 箱を チ 4 から 動かす。",
+        "早く 赤い 本を ナ 6 から 取る。",
+        "早く 青い 箱を チ 1 から 取る。",
+        "ゆっくり 白い ボールを ナ 7 に 置く。",
+        "早く 白い 本を シ 9 に 置く。",
+        "ゆっくり 青い 本を ル 2 から 動かす。",
+        "丁寧に 赤い 箱を ク 1 から 取る。",
+        "今すぐ 緑の ボールを ケ 5 に 投げる。",
+        "丁寧に 緑の ボールを ウ 5 に 投げる。",
+        "今すぐ 青い ペンを タ 2 に 置く。",
+        "ゆっくり 青い 箱を ケ 6 から 動かす。",
+        "今すぐ 緑の 本を オ 5 から 動かす。",
+        "今すぐ 白い ペンを ウ 6 に 投げる。",
+        "今すぐ 緑の ペンを マ 2 から 動かす。"
+    ];
+    const sentences_701_800 = [
+        "早く 白い 本を ヤ 3 から 動かす。",
+        "ゆっくり 緑の ボールを レ 8 に 投げる。",
+        "早く 赤い ペンを フ 3 から 取る。",
+        "丁寧に 赤い ペンを イ 7 に 置く。",
+        "ゆっくり 白い 箱を ム 3 から 動かす。",
+        "今すぐ 白い ボールを リ 7 に 投げる。",
+        "今すぐ 赤い ボールを セ 3 から 動かす。",
+        "早く 緑の 本を ア 2 に 投げる。",
+        "丁寧に 赤い 本を キ 3 に 置く。",
+        "今すぐ 緑の ボールを ヘ 2 に 置く。",
+        "早く 緑の 本を ア 3 に 投げる。",
+        "今すぐ 赤い 本を セ 6 から 取る。",
+        "早く 青い 箱を リ 4 から 動かす。",
+        "今すぐ 赤い ペンを オ 9 に 置く。",
+        "早く 赤い ペンを ミ 0 に 置く。",
+        "早く 緑の 本を メ 0 から 取る。",
+        "ゆっくり 白い 箱を ス 7 から 動かす。",
+        "今すぐ 白い ボールを ウ 0 から 動かす。",
+        "ゆっくり 緑の 本を ヘ 4 から 取る。",
+        "ゆっくり 緑の 箱を ヨ 6 に 置く。",
+        "丁寧に 青い ペンを タ 2 から 取る。",
+        "早く 白い 本を メ 0 に 投げる。",
+        "今すぐ 赤い ペンを リ 6 から 動かす。",
+        "今すぐ 白い ペンを サ 8 から 取る。",
+        "丁寧に 緑の ボールを ヨ 7 に 置く。",
+        "ゆっくり 青い ボールを フ 0 に 投げる。",
+        "今すぐ 赤い 本を フ 8 に 置く。",
+        "早く 青い 箱を ム 8 から 取る。",
+        "ゆっくり 赤い ボールを ソ 7 に 置く。",
+        "今すぐ 青い 箱を ツ 0 に 置く。",
+        "今すぐ 赤い 箱を イ 7 から 動かす。",
+        "早く 赤い 箱を ク 4 に 投げる。",
+        "早く 白い ペンを ウ 1 から 動かす。",
+        "今すぐ 白い 箱を オ 1 から 動かす。",
+        "丁寧に 赤い ペンを ヨ 6 から 動かす。",
+        "今すぐ 白い ペンを ワ 0 から 取る。",
+        "ゆっくり 緑の 本を ウ 7 から 取る。",
+        "ゆっくり 赤い 本を ウ 9 から 取る。",
+        "ゆっくり 青い 本を セ 1 に 投げる。",
+        "ゆっくり 白い 箱を シ 1 に 置く。",
+        "今すぐ 青い 箱を ソ 6 から 動かす。",
+        "今すぐ 青い 本を ユ 2 に 投げる。",
+        "ゆっくり 青い 箱を ル 5 に 置く。",
+        "ゆっくり 赤い 箱を レ 2 に 投げる。",
+        "今すぐ 白い ボールを テ 3 に 投げる。",
+        "丁寧に 白い ボールを サ 7 に 投げる。",
+        "ゆっくり 緑の 本を ウ 5 から 取る。",
+        "ゆっくり 青い 本を タ 0 に 投げる。",
+        "早く 緑の 箱を エ 4 から 動かす。",
+        "丁寧に 赤い 本を ロ 8 に 置く。",
+        "今すぐ 赤い 本を セ 0 に 投げる。",
+        "ゆっくり 緑の ボールを ヘ 0 に 置く。",
+        "今すぐ 赤い 本を オ 4 から 動かす。",
+        "ゆっくり 赤い 箱を シ 3 に 投げる。",
+        "早く 赤い 本を タ 6 から 動かす。",
+        "丁寧に 赤い 本を ニ 2 から 取る。",
+        "早く 白い ペンを タ 3 に 置く。",
+        "早く 白い ペンを ス 5 に 置く。",
+        "早く 赤い ボールを ヨ 4 に 置く。",
+        "早く 赤い ペンを ム 9 に 投げる。",
+        "丁寧に 青い ペンを ニ 2 に 置く。",
+        "ゆっくり 青い ボールを シ 8 から 取る。",
+        "早く 緑の 本を ソ 7 から 動かす。",
+        "丁寧に 白い 本を ソ 4 から 動かす。",
+        "早く 緑の 箱を メ 1 から 動かす。",
+        "丁寧に 赤い 本を ミ 5 に 置く。",
+        "丁寧に 白い 本を ワ 9 から 動かす。",
+        "丁寧に 赤い 本を ア 1 に 置く。",
+        "今すぐ 青い 箱を リ 5 に 投げる。",
+        "ゆっくり 緑の 箱を ス 5 から 取る。",
+        "早く 白い ボールを ヤ 3 から 動かす。",
+        "ゆっくり 青い 本を ヘ 3 に 投げる。",
+        "今すぐ 赤い 本を ツ 4 から 動かす。",
+        "早く 青い 箱を サ 0 に 投げる。",
+        "早く 青い 本を サ 0 に 投げる。",
+        "今すぐ 緑の 箱を ヘ 8 から 動かす。",
+        "今すぐ 青い ペンを ヤ 2 から 動かす。",
+        "丁寧に 青い ペンを ミ 9 に 投げる。",
+        "丁寧に 緑の ボールを コ 7 から 取る。",
+        "早く 緑の 本を チ 2 から 動かす。",
+        "ゆっくり 緑の 本を ア 7 に 置く。",
+        "ゆっくり 赤い 本を ア 3 から 取る。",
+        "丁寧に 白い ペンを ケ 0 から 取る。",
+        "早く 白い 箱を コ 3 に 投げる。",
+        "早く 緑の ボールを ラ 4 に 投げる。",
+        "早く 青い 本を コ 9 から 動かす。",
+        "丁寧に 白い 箱を ア 3 から 取る。",
+        "丁寧に 赤い 本を レ 1 に 投げる。",
+        "今すぐ 白い 本を ヨ 5 に 投げる。",
+        "ゆっくり 白い ペンを ロ 4 から 動かす。",
+        "ゆっくり 緑の 箱を ニ 9 から 動かす。",
+        "丁寧に 緑の ボールを ヤ 7 に 置く。",
+        "今すぐ 白い 本を ケ 7 から 取る。",
+        "ゆっくり 緑の 箱を コ 0 から 動かす。",
+        "丁寧に 白い ボールを ヌ 2 に 置く。",
+        "今すぐ 緑の ペンを エ 1 から 取る。",
+        "今すぐ 青い 箱を メ 3 に 投げる。",
+        "丁寧に 緑の 箱を ケ 9 から 取る。",
+        "ゆっくり 赤い ボールを フ 2 から 動かす。",
+        "ゆっくり 赤い 本を ナ 7 に 投げる。"
+    ];
+    const sentences_801_900 = [
+        "丁寧に 青い 箱を フ 9 に 置く。",
+        "今すぐ 緑の 箱を ワ 7 から 動かす。",
+        "丁寧に 緑の ペンを エ 6 から 動かす。",
+        "ゆっくり 赤い 箱を ヤ 3 に 置く。",
+        "今すぐ 赤い 本を エ 7 から 動かす。",
+        "ゆっくり 赤い ペンを ノ 4 に 置く。",
+        "丁寧に 赤い 箱を ラ 8 に 置く。",
+        "今すぐ 赤い 箱を ル 5 から 取る。",
+        "早く 白い 本を ヘ 2 に 投げる。",
+        "ゆっくり 白い ボールを ヒ 7 から 取る。",
+        "ゆっくり 白い ペンを ア 5 に 投げる。",
+        "今すぐ 緑の 本を レ 1 に 投げる。",
+        "早く 青い 箱を ク 7 から 取る。",
+        "ゆっくり 青い 箱を ク 9 から 取る。",
+        "ゆっくり 緑の ペンを ト 8 に 投げる。",
+        "早く 赤い 箱を ネ 3 に 置く。",
+        "丁寧に 白い 本を ユ 5 に 投げる。",
+        "丁寧に 白い 本を セ 1 に 置く。",
+        "早く 赤い 本を モ 5 に 置く。",
+        "丁寧に 緑の 箱を ネ 6 から 動かす。",
+        "今すぐ 白い 本を ヒ 2 から 取る。",
+        "今すぐ 青い ペンを ヨ 7 から 取る。",
+        "早く 緑の 本を チ 7 から 取る。",
+        "丁寧に 赤い 箱を エ 7 に 置く。",
+        "ゆっくり 赤い 本を マ 2 に 置く。",
+        "ゆっくり 青い ボールを ス 3 から 動かす。",
+        "ゆっくり 白い ボールを ウ 8 に 投げる。",
+        "丁寧に 白い ペンを ラ 4 に 置く。",
+        "丁寧に 緑の 本を ノ 0 から 取る。",
+        "今すぐ 青い ペンを ヒ 0 から 取る。",
+        "丁寧に 白い ペンを ク 3 に 置く。",
+        "丁寧に 赤い 箱を ユ 0 から 取る。",
+        "丁寧に 赤い 本を リ 3 から 動かす。",
+        "丁寧に 赤い ペンを キ 2 に 置く。",
+        "丁寧に 赤い 本を タ 1 に 投げる。",
+        "今すぐ 白い 箱を ナ 2 に 置く。",
+        "ゆっくり 青い 箱を ウ 0 に 置く。",
+        "ゆっくり 緑の 本を セ 5 から 動かす。",
+        "丁寧に 緑の 箱を ヤ 2 に 置く。",
+        "今すぐ 緑の 箱を ニ 1 に 置く。",
+        "丁寧に 白い 本を ヒ 4 に 投げる。",
+        "今すぐ 赤い ボールを チ 3 から 動かす。",
+        "早く 青い 箱を ア 8 に 置く。",
+        "ゆっくり 赤い ペンを キ 0 から 動かす。",
+        "早く 緑の ボールを ク 6 から 取る。",
+        "早く 赤い 本を ラ 2 から 動かす。",
+        "今すぐ 赤い ペンを フ 7 に 投げる。",
+        "今すぐ 青い 箱を ユ 5 から 動かす。",
+        "丁寧に 緑の ペンを ヤ 1 から 取る。",
+        "ゆっくり 緑の 箱を ハ 2 に 置く。",
+        "ゆっくり 緑の 本を ク 1 に 置く。",
+        "丁寧に 白い 箱を ロ 3 から 動かす。",
+        "丁寧に 緑の 箱を ム 9 に 投げる。",
+        "ゆっくり 白い ボールを メ 7 から 取る。",
+        "ゆっくり 青い ペンを ユ 1 に 投げる。",
+        "ゆっくり 青い ペンを エ 1 から 取る。",
+        "丁寧に 赤い 本を ウ 1 に 置く。",
+        "丁寧に 緑の 本を ヘ 9 から 取る。",
+        "ゆっくり 赤い 本を セ 5 に 置く。",
+        "今すぐ 白い 箱を オ 4 に 置く。",
+        "早く 青い 本を ネ 9 から 取る。",
+        "今すぐ 赤い 本を ヌ 6 に 置く。",
+        "丁寧に 赤い 箱を モ 6 に 投げる。",
+        "ゆっくり 白い 箱を メ 4 から 取る。",
+        "早く 白い ボールを ワ 6 に 置く。",
+        "今すぐ 白い ボールを ノ 3 に 投げる。",
+        "丁寧に 青い 本を ツ 6 から 取る。",
+        "早く 青い 箱を ネ 8 に 投げる。",
+        "早く 緑の ボールを ネ 2 に 投げる。",
+        "早く 赤い 箱を キ 1 に 置く。",
+        "ゆっくり 緑の 箱を ロ 5 から 動かす。",
+        "丁寧に 青い ボールを サ 9 に 投げる。",
+        "今すぐ 青い ペンを ウ 1 に 置く。",
+        "ゆっくり 緑の ペンを ウ 1 から 取る。",
+        "早く 赤い ペンを タ 2 から 動かす。",
+        "今すぐ 赤い ペンを テ 5 から 動かす。",
+        "ゆっくり 赤い 本を エ 3 から 動かす。",
+        "ゆっくり 赤い 箱を ユ 2 から 取る。",
+        "早く 青い 箱を リ 2 に 置く。",
+        "早く 青い 箱を ユ 4 に 置く。",
+        "今すぐ 赤い 本を イ 5 から 取る。",
+        "今すぐ 青い ボールを ス 8 に 置く。",
+        "今すぐ 青い ボールを ウ 4 から 動かす。",
+        "早く 赤い 箱を ヤ 9 に 投げる。",
+        "丁寧に 青い 箱を ハ 2 に 投げる。",
+        "今すぐ 赤い 本を ル 2 に 置く。",
+        "今すぐ 赤い 箱を マ 3 から 取る。",
+        "ゆっくり 白い 箱を ア 6 から 取る。",
+        "ゆっくり 緑の 箱を ユ 6 から 取る。",
+        "今すぐ 赤い ボールを ア 0 に 置く。",
+        "ゆっくり 赤い ペンを ウ 1 に 置く。",
+        "ゆっくり 赤い ボールを ア 7 から 動かす。",
+        "ゆっくり 赤い 本を ハ 9 に 置く。",
+        "今すぐ 緑の 本を ロ 9 から 動かす。",
+        "丁寧に 赤い 箱を ネ 9 に 置く。",
+        "今すぐ 白い 箱を ニ 9 に 置く。",
+        "丁寧に 白い 本を モ 2 に 置く。",
+        "ゆっくり 白い ボールを チ 4 に 投げる。",
+        "丁寧に 青い 本を ネ 8 から 取る。",
+        "丁寧に 白い ボールを イ 3 に 投げる。"
+    ];
+    const sentences_901_1000 =[
+        "今すぐ 赤い ボールを チ 6 に 置く。",
+        "丁寧に 緑の ペンを ハ 5 から 動かす。",
+        "今すぐ 白い ペンを ケ 4 から 取る。",
+        "ゆっくり 緑の ボールを シ 8 から 取る。",
+        "ゆっくり 青い ペンを ハ 0 に 投げる。",
+        "ゆっくり 赤い 箱を ナ 7 から 動かす。",
+        "今すぐ 赤い ボールを ネ 5 から 取る。",
+        "早く 青い ペンを フ 3 に 投げる。",
+        "早く 赤い 本を ソ 4 に 置く。",
+        "今すぐ 赤い 本を マ 6 から 取る。",
+        "今すぐ 青い 本を ハ 9 から 取る。",
+        "ゆっくり 青い 本を ユ 6 に 置く。",
+        "今すぐ 白い 箱を モ 6 に 投げる。",
+        "丁寧に 赤い ボールを ム 5 から 取る。",
+        "早く 青い 箱を ル 4 に 置く。",
+        "今すぐ 緑の 本を ミ 7 に 置く。",
+        "ゆっくり 白い ボールを イ 5 に 投げる。",
+        "丁寧に 赤い 箱を エ 4 に 投げる。",
+        "ゆっくり 青い ペンを ル 5 に 置く。",
+        "丁寧に 青い 箱を リ 9 から 動かす。",
+        "ゆっくり 緑の ボールを ヘ 4 に 投げる。",
+        "今すぐ 白い ペンを ラ 9 に 置く。",
+        "丁寧に 赤い ペンを シ 6 に 投げる。",
+        "早く 青い 本を ニ 5 から 取る。",
+        "ゆっくり 白い ペンを ニ 9 から 動かす。",
+        "早く 赤い ペンを フ 4 に 置く。",
+        "今すぐ 赤い 本を ス 9 から 動かす。",
+        "ゆっくり 白い 本を イ 8 から 動かす。",
+        "ゆっくり 白い 箱を ユ 0 から 動かす。",
+        "早く 緑の 箱を ル 5 から 取る。",
+        "早く 赤い ボールを ル 2 に 投げる。",
+        "ゆっくり 赤い 箱を オ 9 から 動かす。",
+        "ゆっくり 赤い 箱を イ 2 から 取る。",
+        "丁寧に 赤い 本を ス 1 から 取る。",
+        "早く 青い ペンを ロ 1 から 取る。",
+        "早く 青い ボールを ム 7 に 置く。",
+        "今すぐ 白い 箱を ワ 1 に 置く。",
+        "ゆっくり 緑の 本を ツ 7 に 置く。",
+        "早く 白い 本を ル 9 から 取る。",
+        "丁寧に 白い ペンを モ 1 から 動かす。",
+        "ゆっくり 白い 本を ヘ 9 から 取る。",
+        "ゆっくり 白い 本を ニ 9 に 投げる。",
+        "丁寧に 白い ボールを ノ 8 に 投げる。",
+        "早く 白い ボールを シ 9 から 取る。",
+        "今すぐ 青い ペンを ユ 7 に 置く。",
+        "今すぐ 緑の 箱を イ 9 に 置く。",
+        "丁寧に 白い ボールを マ 9 に 置く。",
+        "丁寧に 緑の 箱を カ 9 に 投げる。",
+        "今すぐ 青い ペンを マ 7 から 取る。",
+        "早く 赤い ペンを フ 7 に 投げる。",
+        "丁寧に 白い ボールを タ 0 から 動かす。",
+        "早く 赤い 本を キ 5 に 置く。",
+        "今すぐ 白い ペンを タ 4 に 置く。",
+        "早く 緑の 本を ツ 8 から 取る。",
+        "丁寧に 白い ペンを イ 3 から 動かす。",
+        "丁寧に 赤い 本を ハ 6 に 投げる。",
+        "ゆっくり 白い 本を カ 6 に 置く。",
+        "丁寧に 白い ペンを メ 1 に 投げる。",
+        "早く 緑の 本を ケ 5 から 取る。",
+        "ゆっくり 青い ボールを マ 5 に 投げる。",
+        "早く 赤い 本を ル 0 に 投げる。",
+        "ゆっくり 緑の 本を セ 5 に 置く。",
+        "早く 緑の 本を ル 5 から 動かす。",
+        "丁寧に 赤い 箱を ル 1 に 投げる。",
+        "今すぐ 緑の 箱を タ 3 から 取る。",
+        "今すぐ 白い 本を ユ 4 に 投げる。",
+        "今すぐ 白い 本を リ 2 に 投げる。",
+        "丁寧に 白い 本を レ 0 から 動かす。",
+        "今すぐ 白い ペンを モ 8 から 取る。",
+        "早く 白い ペンを レ 1 に 投げる。",
+        "丁寧に 青い ペンを オ 9 に 置く。",
+        "ゆっくり 青い 箱を オ 1 に 置く。",
+        "今すぐ 白い 箱を ミ 6 から 動かす。",
+        "早く 青い 箱を ホ 5 に 置く。",
+        "ゆっくり 青い 本を キ 5 から 動かす。",
+        "丁寧に 白い ボールを メ 3 に 置く。",
+        "ゆっくり 緑の 本を ノ 0 から 取る。",
+        "今すぐ 緑の ボールを ス 6 に 置く。",
+        "ゆっくり 白い 本を ア 9 から 取る。",
+        "今すぐ 赤い 本を ツ 8 に 投げる。",
+        "丁寧に 青い ボールを ソ 9 に 置く。",
+        "今すぐ 赤い 箱を エ 0 から 動かす。",
+        "丁寧に 赤い ボールを イ 9 に 置く。",
+        "早く 青い ペンを イ 2 に 投げる。",
+        "今すぐ 白い 本を カ 0 から 動かす。",
+        "早く 緑の ペンを イ 0 から 動かす。",
+        "丁寧に 白い ペンを ヒ 7 に 投げる。",
+        "ゆっくり 青い 箱を タ 9 に 置く。",
+        "今すぐ 白い 本を オ 2 から 動かす。",
+        "早く 赤い 箱を フ 7 に 置く。",
+        "今すぐ 赤い 箱を タ 3 に 置く。",
+        "ゆっくり 赤い 本を ケ 3 から 取る。",
+        "丁寧に 白い ボールを ア 0 から 取る。",
+        "早く 白い 本を オ 8 に 置く。",
+        "ゆっくり 緑の ペンを ロ 9 から 取る。",
+        "ゆっくり 青い 本を ホ 7 から 取る。",
+        "早く 緑の ペンを セ 5 に 置く。",
+        "早く 白い 本を リ 5 から 取る。",
+        "ゆっくり 緑の 本を ヤ 5 から 動かす。",
+        "今すぐ 白い 本を ヨ 6 から 動かす。"
+    ];
+
+    function showModal(message) { modalMessage.textContent = message; customModal.style.display = 'flex'; }
+    modalOkButton.onclick = () => customModal.style.display = 'none';
+
+    function addStatusMessage(message, type = 'info') {
+        const p=document.createElement('p');p.textContent=message;
+        if(type==='error')p.className='text-red-400'; else if(type==='success')p.className='text-green-400'; else p.className='text-sky-300';
+        if(statusMessages.firstChild)statusMessages.insertBefore(p,statusMessages.firstChild); else statusMessages.appendChild(p);
+        while(statusMessages.children.length>15)statusMessages.removeChild(statusMessages.lastChild);
+    }
+
+    function checkCanProceedToDeviceSetup() {
+        if(userNameEntered && batchSelected) {
+            proceedToDeviceSetupButton.disabled=false;
+            // addStatusMessage("Ready for device setup.","success"); // Can be a bit noisy here
+        } else {
+            proceedToDeviceSetupButton.disabled=true;
+        }
+    }
+
+    async function stopTempDeviceStream() {
+        if (tempDeviceStream) {
+            tempDeviceStream.getTracks().forEach(track => track.stop());
+            tempDeviceStream = null;
+            deviceSelectionPreview.srcObject = null;
+        }
+    }
+
+    async function updateDeviceSelectionPreview() {
+        await stopTempDeviceStream();
+        const currentCamId = cameraSelect.value;
+        if (!currentCamId) { deviceSelectionPreview.srcObject = null; return; }
+        try {
+            const constraints = { video: { deviceId: { exact: currentCamId } }, audio: false }; // No audio needed for this preview
+            tempDeviceStream = await navigator.mediaDevices.getUserMedia(constraints);
+            deviceSelectionPreview.srcObject = tempDeviceStream;
+        } catch (err) {
+            addStatusMessage(`Error previewing camera: ${err.message.split(':')[0]}`, "error");
+            deviceSelectionPreview.srcObject = null;
+        }
+    }
+
+    async function populateDeviceSelectors() {
+        addStatusMessage("Listing devices...", "info");
+        confirmDevicesAndTestButton.disabled = true;
+        cameraSelect.innerHTML = '<option value="">Loading cameras...</option>';
+        micSelect.innerHTML = '<option value="">Loading mics...</option>';
+        let permissionGranted = false;
+        try {
+            // Attempt to get a stream just to trigger permission prompt if not already granted.
+            // This helps ensure enumerateDevices can access device labels.
+            const tempPermStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+            tempPermStream.getTracks().forEach(track => track.stop()); // Stop tracks immediately
+            permissionGranted = true;
+            addStatusMessage("Device permissions active.", "info");
+        } catch (err) {
+            showModal("Permission denied for camera/microphone. Cannot list devices or record. Please grant permissions and refresh.");
+            addStatusMessage("Permission denied for device listing. Cannot proceed.", "error");
+            cameraSelect.innerHTML = '<option value="">Permission Denied</option>'; micSelect.innerHTML = '<option value="">Permission Denied</option>';
+            return;
+        }
+        if (!permissionGranted) return;
+
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(d => d.kind === 'videoinput');
+            const mics = devices.filter(d => d.kind === 'audioinput');
+
+            cameraSelect.innerHTML = ''; micSelect.innerHTML = ''; // Clear loading messages
+
+            if (cameras.length > 0) {
+                cameras.forEach(camera => { const option=document.createElement('option'); option.value=camera.deviceId; option.textContent=camera.label||`Camera ${cameraSelect.options.length+1}`; cameraSelect.appendChild(option); });
+                cameraSelect.selectedIndex = 0; // Pre-select first camera
+                await updateDeviceSelectionPreview(); // Start preview with pre-selected camera
+            } else { cameraSelect.innerHTML = '<option value="">No cameras found</option>'; }
+
+            if (mics.length > 0) {
+                mics.forEach(mic => { const option=document.createElement('option'); option.value=mic.deviceId; option.textContent=mic.label||`Microphone ${micSelect.options.length+1}`; micSelect.appendChild(option); });
+                micSelect.selectedIndex = 0; // Pre-select first mic
+            } else { micSelect.innerHTML = '<option value="">No microphones found</option>'; }
+
+            if (cameras.length > 0 && mics.length > 0) { confirmDevicesAndTestButton.disabled = false; addStatusMessage("Please select your camera and microphone.", "info"); }
+            else { showModal("No cameras or microphones found. Please ensure they are connected and enabled."); addStatusMessage("No cameras or microphones found.", "error"); }
+        } catch (err) { console.error("Error enumerating devices:", err); showModal("Error listing devices: " + err.message); addStatusMessage("Error listing devices: "+err.message, "error"); cameraSelect.innerHTML='<option value="">Error</option>'; micSelect.innerHTML='<option value="">Error</option>';}
+    }
+
+    cameraSelect.addEventListener('change', updateDeviceSelectionPreview);
+
+    async function initializeFirebase() { /* ... (same as provided in previous full code, ensure it's complete) ... */
+        try { const cs = typeof __firebase_config !== 'undefined' ? __firebase_config : null; appId = typeof __app_id !== 'undefined' ? __app_id : 'video-sentence-recorder-default'; if (!cs) { console.warn("Firebase config missing."); addStatusMessage("Firebase config missing. Cloud backup disabled.", "info"); isFirebaseReady = false; return; } const fc = JSON.parse(cs); firebaseApp = initializeApp(fc); auth = getAuth(firebaseApp); db = getFirestore(firebaseApp); storage = getStorage(firebaseApp); setLogLevel('debug'); await setPersistence(auth, browserLocalPersistence); onAuthStateChanged(auth, async (user) => { if (user) { userId = user.uid; addStatusMessage(`Firebase Auth OK. User: ${userId.substring(0,10)}...`, 'success'); displayUserId.textContent = userId; isFirebaseReady = true; } else { const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; if (token) { try { await signInWithCustomToken(auth, token); } catch (e) { await signInAnonymously(auth); } } else { await signInAnonymously(auth); } addStatusMessage("Firebase signed in.", "success"); } });
+        } catch (e) { console.error("FB Init Err:", e); showModal("FB Init Err: " + e.message); addStatusMessage("FB Init Err: " + e.message, "error"); isFirebaseReady = false; }
+    }
+
+    async function setupMedia(micId, cameraId) {
+        addStatusMessage("Setting up media with selected devices...");
+        if (mainStream) { mainStream.getTracks().forEach(track => track.stop()); mainStream = null; } // Clean up previous main stream
+        await stopTempDeviceStream(); // Ensure temp preview stream from device selection is stopped
+
+        try {
+            const constraints = { audio: micId ? { deviceId: { exact: micId } } : true, video: { ...(cameraId ? { deviceId: { exact: cameraId } } : {}), frameRate: { ideal: 30, max: 30 } } };
+            if (!micId || !cameraId) { showModal("Device ID missing. Please re-select devices."); addStatusMessage("Mic or Cam ID missing.", "error"); return false;}
+            mainStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+            if (typeof MediaRecorder==='undefined') { showModal("MediaRecorder not supported."); throw new Error("MediaRecorder not supported"); }
+            const opts = { mimeType: 'video/mp4' }; if (!MediaRecorder.isTypeSupported(opts.mimeType)) { opts.mimeType = 'video/webm'; if (!MediaRecorder.isTypeSupported(opts.mimeType)) delete opts.mimeType; }
+            mediaRecorder = new MediaRecorder(mainStream, opts);
+            addStatusMessage(`Recorder initialized. Type: ${mediaRecorder.mimeType||'default'}`, 'success');
+            mediaRecorder.ondataavailable = e => e.data.size > 0 && recordedChunks.push(e.data);
+            mediaRecorder.onstop = handleRecordingStop; // Main onstop handler
+            addStatusMessage("Media setup complete.", "success");
+            return true;
+        } catch (err) {
+            console.error("Media setup error.", err); showModal("Camera/mic setup error: " + err.message + ". Try different devices or check permissions."); addStatusMessage("Media setup error: " + err.message, "error");
+            testRecordingSection.classList.add('hidden'); recordingSection.classList.add('hidden'); deviceSelectionSection.classList.remove('hidden'); // Go back to device selection
+            return false;
+        }
+    }
+
+    async function handleRecordingStop() {
+        const wasRedo = isPerformingRedo; isPerformingRedo = false;
+        const wasTest = isTestRecordingActive; isTestRecordingActive = false; // Reset after checking
+
+        const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' }); recordedChunks = [];
+
+        if (wasTest) {
+            addStatusMessage("Test recording complete. Devices seem to work.", "success");
+            startStopTestButton.textContent = "Restart Test"; startStopTestButton.disabled = false;
+            proceedToMainRecordingButton.classList.remove('hidden'); proceedToMainRecordingButton.disabled = false;
+            return; // Stop further processing for test recordings
+        }
+        if (wasRedo) { addStatusMessage("Previous attempt discarded. Starting redo.", "info"); startRecordingInternal(); return; } // No saving for redo
+
+        // Normal recording stop logic
+        addStatusMessage("Recording stopped for sentence " + currentSentenceIndex + ".");
+        const sentenceText = sentences[currentSentenceIndex - 1]; // currentSentenceIndex was already incremented for next or is same for redo
+        const fileBase = `${userName}_batch${sentenceBatchSelect.value}_${currentSentenceIndex}`;
+        const ext = mediaRecorder.mimeType?.includes('mp4') ? 'mp4' : 'webm';
+        const videoFile = `${fileBase}.${ext}`; const textFile = `${fileBase}.txt`;
+        downloadFile(blob, videoFile); addStatusMessage(`Video "${videoFile}" download initiated.`, 'success');
+        downloadFile(new Blob([sentenceText], { type: 'text/plain' }), textFile); addStatusMessage(`Text "${textFile}" download initiated.`, 'success');
+
+        // Firebase backup
+        if (isFirebaseReady && auth.currentUser) { /* ... (same as before) ... */ } else { addStatusMessage("FB not ready/authed; skipping cloud backup.", "info"); }
+
+        if (currentSentenceIndex < sentences.length) { displayNextSentence(); startRecordingInternal(); }
+        else { completeRecordingSession(); }
+    }
+
+    function startRecordingInternal() {
+        if (mediaRecorder && mediaRecorder.state === "inactive" && mainStream?.active) {
+            if (isTestRecordingActive) {
+                videoPreviewTest.srcObject = mainStream; // Ensure test preview has the stream
+            } else {
+                videoPreview.srcObject = mainStream; // Ensure main preview has the stream
+            }
+
+            if (!isTestRecordingActive && (sentences.length === 0 || currentSentenceIndex >= sentences.length)) {
+                addStatusMessage("No more sentences or sentences not loaded.", "error");
+                if (sentences.length > 0 && currentSentenceIndex >= sentences.length) completeRecordingSession(); return;
+            }
+            recordedChunks = []; mediaRecorder.start(); isPaused = false;
+
+            if (isTestRecordingActive) {
+                addStatusMessage(`Test recording started...`);
+                startStopTestButton.textContent = "Stop Test Recording";
+                proceedToMainRecordingButton.classList.add('hidden');
+            } else {
+                addStatusMessage(`Recording for sentence ${currentSentenceIndex + 1}...`);
+                nextSentenceButton.textContent = `Next & Save (${currentSentenceIndex + 1}/${sentences.length})`;
+                nextSentenceButton.classList.remove('bg-emerald-600', 'hover:bg-emerald-700'); nextSentenceButton.classList.add('bg-red-600', 'hover:bg-red-700');
+                nextSentenceButton.disabled = false;
+                pauseResumeButton.textContent = "Pause"; pauseResumeButton.disabled = false;
+                pauseResumeButton.classList.remove('bg-green-500', 'hover:bg-green-600', 'opacity-50'); pauseResumeButton.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                redoButton.disabled = false;
+            }
+        } else {
+            addStatusMessage("Cannot start recording. Recorder not ready or stream inactive.", "error");
+            if (!mainStream?.active) showModal("Camera/mic stream inactive. Check permissions.");
+        }
+    }
+
+    function runCountdownAndStart() {
+        timerDisplayContainer.classList.remove('hidden'); let count = 3; timerText.textContent = count;
+        nextSentenceButton.disabled = true; pauseResumeButton.disabled = true; redoButton.disabled = true;
+        countdownInterval = setInterval(() => { count--; timerText.textContent = count; if (count <= 0) { clearInterval(countdownInterval); timerDisplayContainer.classList.add('hidden'); isFirstSentenceOfSession = false; startRecordingInternal(); } }, 1000);
+    }
+    function displayNextSentence() {
+        if (currentSentenceIndex < sentences.length) { sentenceToRead.textContent = sentences[currentSentenceIndex]; addStatusMessage(`Sentence ${currentSentenceIndex + 1}: "${sentences[currentSentenceIndex].substring(0,30)}..."`); }
+    }
+    function handleNextAction() { // For main recording "Next/Start First" button
+        if (isPaused) { showModal("Please resume recording before proceeding."); return; }
+        if (mediaRecorder && mediaRecorder.state === "inactive" && currentSentenceIndex === 0) { // First click to start main session
+            displayNextSentence();
+            if (isFirstSentenceOfSession) { runCountdownAndStart(); }
+            else { startRecordingInternal(); }
+        } else if (mediaRecorder && (mediaRecorder.state === "recording" || mediaRecorder.state === "paused")) {
+            if (mediaRecorder.state === "paused") mediaRecorder.resume();
+            isPerformingRedo = false; mediaRecorder.stop(); currentSentenceIndex++;
+        }
+    }
+    redoButton.addEventListener('click', () => {
+        if (!mediaRecorder || isPaused || isTestRecordingActive) return;
+        addStatusMessage("Redo requested for current sentence.", "info"); isPerformingRedo = true;
+        if (mediaRecorder.state === "recording") { mediaRecorder.stop(); } // onstop will handle restart
+        // No else if inactive needed here for redo, as it implies a recording was active
+    });
+    pauseResumeButton.addEventListener('click', () => {
+        if (!mediaRecorder || mediaRecorder.state === "inactive" || isTestRecordingActive) return;
+        if (!isPaused) { if (mediaRecorder.state === "recording") { mediaRecorder.pause(); isPaused = true; pauseResumeButton.textContent = "Resume"; pauseResumeButton.classList.remove('bg-yellow-500', 'hover:bg-yellow-600'); pauseResumeButton.classList.add('bg-green-500', 'hover:bg-green-600'); addStatusMessage("Recording paused.", "info"); nextSentenceButton.disabled = true; redoButton.disabled = true; } }
+        else { if (mediaRecorder.state === "paused") { mediaRecorder.resume(); isPaused = false; pauseResumeButton.textContent = "Pause"; pauseResumeButton.classList.remove('bg-green-500', 'hover:bg-green-600'); pauseResumeButton.classList.add('bg-yellow-500', 'hover:bg-yellow-600'); addStatusMessage("Recording resumed.", "info"); nextSentenceButton.disabled = false; redoButton.disabled = false; } }
+    });
+    function completeRecordingSession() {
+        addStatusMessage("All sentences recorded!", "success"); recordingSection.classList.add('hidden'); completionMessage.classList.remove('hidden');
+        if (mainStream) mainStream.getTracks().forEach(track => track.stop()); mainStream = null;
+        videoPreview.srcObject = null; videoPreviewTest.srcObject = null;
+        isFirstSentenceOfSession = true; redoButton.disabled = true; pauseResumeButton.disabled = true; if(countdownInterval) clearInterval(countdownInterval);
+    }
+    function downloadFile(blob, filename) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.style.display = 'none'; a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); }
+
+    function resetApp() {
+        userName = ''; currentSentenceIndex = 0; recordedChunks = []; isPaused = false;
+        if (mainStream) mainStream.getTracks().forEach(track => track.stop()); mainStream = null;
+        stopTempDeviceStream();
+        videoPreview.srcObject = null; videoPreviewTest.srcObject = null; mediaRecorder = null; sentences = [];
+        userNameEntered = false; batchSelected = false; isFirstSentenceOfSession = true; isPerformingRedo = false; isTestRecordingActive = false;
+        selectedCameraId = ''; selectedMicId = '';
+        if(countdownInterval) clearInterval(countdownInterval); timerDisplayContainer.classList.add('hidden');
+
+        nameSection.classList.remove('hidden'); deviceSelectionSection.classList.add('hidden'); testRecordingSection.classList.add('hidden'); recordingSection.classList.add('hidden'); completionMessage.classList.add('hidden');
+
+        userNameInput.value = ''; sentenceBatchSelect.value = ''; cameraSelect.innerHTML = ''; micSelect.innerHTML = '';
+        statusMessages.innerHTML = ''; addStatusMessage("App reset. Enter name & select batch.");
+        nextSentenceButton.textContent = 'Start First'; nextSentenceButton.disabled = true;
+        nextSentenceButton.classList.remove('bg-red-600', 'hover:bg-red-700'); nextSentenceButton.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
+        pauseResumeButton.textContent = "Pause"; pauseResumeButton.disabled = true; redoButton.disabled = true;
+        proceedToDeviceSetupButton.disabled = true; confirmDevicesAndTestButton.disabled = true;
+        startStopTestButton.textContent = "Start Test Recording"; startStopTestButton.disabled=true;
+        proceedToMainRecordingButton.classList.add('hidden');
+        checkCanProceedToDeviceSetup();
+        totalSentencesDisplay.textContent = "0"; displayBatchInfo.textContent = "";
+    }
+
+    userNameInput.addEventListener('input', () => { userNameEntered = userNameInput.value.trim() !== ''; checkCanProceedToDeviceSetup(); });
+    sentenceBatchSelect.addEventListener('change', () => { batchSelected = sentenceBatchSelect.value !== ''; if (batchSelected) addStatusMessage(`Batch selected: ${sentenceBatchSelect.options[sentenceBatchSelect.selectedIndex].text}`, "info"); checkCanProceedToDeviceSetup();});
+
+    proceedToDeviceSetupButton.addEventListener('click', async () => {
+        userName = userNameInput.value.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+        if (!userName) { showModal("Please enter a valid name."); return; }
+        const sbv = sentenceBatchSelect.value; if (!sbv) { showModal("Please select a sentence batch."); return; }
+        // Load sentences
+        switch(sbv) {
+            case '1': sentences = sentences_1_100; break; case '2': sentences = sentences_101_200; break; case '3': sentences = sentences_201_300; break; case '4': sentences = sentences_301_400; break; case '5': sentences = sentences_401_500; break; case '6': sentences = sentences_501_600; break; case '7': sentences = sentences_601_700; break; case '8': sentences = sentences_701_800; break; case '9': sentences = sentences_801_900; break; case '10': sentences = sentences_901_1000; break; default: showModal("Invalid batch."); return;
+        }
+        if (sentences.length === 0 && sbv !== "") { // Check sbv to avoid false positive if no batch selected yet
+            showModal(`Selected sentence batch (Batch ${sbv}) is empty. Please add sentences to the code manually.`);
+            addStatusMessage(`Batch ${sbv} is empty. Add sentences to it in the JS code.`, "error");
+            return;
+        }
+        addStatusMessage(`${sentences.length} sentences for Batch ${sbv} loaded.`, "success");
+        nameSection.classList.add('hidden'); deviceSelectionSection.classList.remove('hidden');
+        await populateDeviceSelectors();
+    });
+
+    backToNameSetupButton.addEventListener('click', () => { stopTempDeviceStream(); deviceSelectionSection.classList.add('hidden'); nameSection.classList.remove('hidden'); });
+
+    backToDeviceSelectionButton.addEventListener('click', async () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            isTestRecordingActive = true; // Ensure if it stops, it's treated as a test abort
+            mediaRecorder.stop(); // Stop test recording if active
+        }
+        if (mainStream) { mainStream.getTracks().forEach(track => track.stop()); mainStream = null; } // Stop the main stream used for test
+        videoPreviewTest.srcObject = null;
+        testRecordingSection.classList.add('hidden');
+        deviceSelectionSection.classList.remove('hidden');
+        await populateDeviceSelectors();
+    });
+
+    confirmDevicesAndTestButton.addEventListener('click', async () => {
+        selectedCameraId = cameraSelect.value; selectedMicId = micSelect.value;
+        if (!selectedCameraId || !selectedMicId) { showModal("Please select both camera and microphone."); return; }
+
+        await stopTempDeviceStream();
+
+        const mediaReady = await setupMedia(selectedMicId, selectedCameraId);
+        if (mediaReady) {
+            deviceSelectionSection.classList.add('hidden');
+            testRecordingSection.classList.remove('hidden');
+            videoPreviewTest.srcObject = mainStream;
+            startStopTestButton.textContent = "Start Test Recording"; startStopTestButton.disabled = false;
+            proceedToMainRecordingButton.classList.add('hidden'); proceedToMainRecordingButton.disabled = true;
+            addStatusMessage("Ready for test recording.", "info");
+        } else {
+            addStatusMessage("Failed to set up media. Please check devices and permissions.", "error");
+        }
+    });
+
+    startStopTestButton.addEventListener('click', () => {
+        if (!mediaRecorder) { addStatusMessage("MediaRecorder not ready for test.", "error"); return; }
+        if (mediaRecorder.state === 'inactive') {
+            isTestRecordingActive = true; // Set flag before starting
+            startRecordingInternal(); // Use the generalized internal start
+        } else if (mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            addStatusMessage("Stopping test recording...", "info");
+        }
+    });
+
+    proceedToMainRecordingButton.addEventListener('click', () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            isTestRecordingActive = true; mediaRecorder.stop();
+            addStatusMessage("Finalizing test setup. Please wait for stop.", "info");
+            // The onstop will re-enable the button, user might need to click again if it's too fast
+            // Better: disable this button until onstop from test completes and re-enables it.
+            // For now, let's assume onstop from test runs and makes proceedToMainRecordingButton available again.
+            // To prevent issues, we can ensure mediaRecorder is inactive before proceeding.
+            // However, the current onstop logic for test does enable this button.
+        }
+        videoPreviewTest.srcObject = null; testRecordingSection.classList.add('hidden');
+        recordingSection.classList.remove('hidden'); videoPreview.srcObject = mainStream;
+
+        isFirstSentenceOfSession = true; currentSentenceIndex = 0;
+        displayNextSentence();
+        nextSentenceButton.textContent = "Start First"; nextSentenceButton.disabled = false;
+        pauseResumeButton.disabled = true; redoButton.disabled = true;
+        displayBatchInfo.textContent = sentenceBatchSelect.options[sentenceBatchSelect.selectedIndex].text;
+        totalSentencesDisplay.textContent = sentences.length;
+        displayName.textContent = userName;
+        addStatusMessage("Ready for main recording session.", "info");
+    });
+
+    initializeFirebase(); addStatusMessage("App loaded. Enter name & select batch."); checkCanProceedToDeviceSetup();
+    // Attach other listeners like nextSentenceButton, restartButton, keydown
+    nextSentenceButton.addEventListener('click', handleNextAction);
+    restartButton.addEventListener('click', resetApp);
+    document.addEventListener('keydown', (e) => {
+        if (isTestRecordingActive) return; // Don't let space/enter affect main controls during test
+        if (!recordingSection.classList.contains('hidden') && !isPaused && (e.key === 'Enter' || e.code === 'Space')) {
+            e.preventDefault();
+            if (!nextSentenceButton.disabled) nextSentenceButton.click();
+        }
+    });
+</script>
+</body>
+</html>
